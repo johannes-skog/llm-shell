@@ -1,0 +1,25 @@
+version: '3.4' 
+services:
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:0.1.23
+    ports:
+      - "11434:11434"
+    volumes:
+      - "./ollama-models:/root/.ollama"
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - capabilities: ["gpu"]
+            driver: nvidia
+            count: 1
+  web-interface:
+    container_name: web-interface
+    build:
+      context: .
+      dockerfile: Dockerfile.interface
+    ports:
+      - "80:80"
+    volumes:
+      - "./web-interface:/home/sbot"
