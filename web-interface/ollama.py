@@ -1,17 +1,27 @@
 import requests
 from typing import Optional, Dict, List, Any
+import json
 
 
 class OllamaWrapper:
     def __init__(self, base_url: str):
         self.base_url = base_url
 
-    def _post_request(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post_request(self, endpoint: str, payload: Dict[str, Any]):
         """Internal method to make POST requests."""
         url = f"{self.base_url}/{endpoint}"
-        response = requests.post(url, json=payload)
+        stream = True
+        response = requests.post(url, json=payload, stream=stream)
         response.raise_for_status()
-        return response.json()
+
+        if stream:
+            # Handle streaming responses
+            for line in response.iter_lines():
+                if line:  # filter out keep-alive new lines
+                    yield json.loads(line.decode("utf-8"))
+        else:
+            # Handle non-streaming responses
+            yield response.json()
 
     def generate_completion(
         self, model: str, prompt: str, images: Optional[List[str]] = None, **kwargs
