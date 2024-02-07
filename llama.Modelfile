@@ -1,0 +1,2 @@
+FROM ./mistral-7b-instruct-v0.1.Q4_K_M.gguf
+PARAMETER num_gpu 33
