@@ -1,0 +1,11 @@
+FROM python:3.10-slim
+
+WORKDIR /home
+
+EXPOSE 80
+
+COPY web-interface /home/web-interface
+
+RUN pip install streamlit
+
+ENTRYPOINT ["python", "-m", "streamlit", "run", "web-interface/main.py", "--server.port=80", "--server.address=0.0.0.0"]
