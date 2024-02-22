@@ -19,9 +19,50 @@ services:
   ollama-webui:
     container_name: ollama-webui
     image: ghcr.io/ollama-webui/ollama-webui:main
+    restart: always
     ports:
       - "3000:8080"
     environment:
         OLLAMA_API_BASE_URL: "http://ollama:11434/api"
     volumes:
       - ./ollama-webui:/app/backend/data
+  weaviate:
+    container_name: weaviate
+    image: semitechnologies/weaviate:1.22.5
+    ports:
+    - 8080:8080
+    restart: always
+    environment:
+      # https://weaviate.io/developers/weaviate/config-refs/env-vars
+      QUERY_DEFAULTS_LIMIT: 25
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: text2vec-openai
+      CLUSTER_HOSTNAME: 'weaviate'
+      ENABLE_MODULES: 'text2vec-openai,generative-openai'
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+    # Make the PERSISTENCE_DATA_PATH to be mounted
+    volumes:
+      - ./.vectordb:/var/lib/weaviate
+  redis:
+    container_name: redis
+    image: redis/redis-stack
+    ports:
+    - 8001:8001
+    - 6379:6379
+    volumes:
+      - ./redis.conf:/redis-stack.conf 
+      - ./.redis:/data
+  
+  backend:
+    container_name: backend
+    image: backend
+    ports: 
+    - 8000:8000
+    build:
+      context: . # This line specifies the build context
+      dockerfile: Dockerfile.backend
+    restart: always
+    volumes:
+      - ./backend:/backend 
+
+  
