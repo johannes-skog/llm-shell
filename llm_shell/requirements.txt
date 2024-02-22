@@ -1,0 +1,8 @@
+fire
+rich
+requests
+markdown
+aiohttp
+beautifulsoup4
+dacite
+pyyaml
