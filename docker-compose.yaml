@@ -26,23 +26,6 @@ services:
         OLLAMA_API_BASE_URL: "http://ollama:11434/api"
     volumes:
       - ./ollama-webui:/app/backend/data
-  weaviate:
-    container_name: weaviate
-    image: semitechnologies/weaviate:1.22.5
-    ports:
-    - 8080:8080
-    restart: always
-    environment:
-      # https://weaviate.io/developers/weaviate/config-refs/env-vars
-      QUERY_DEFAULTS_LIMIT: 25
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      DEFAULT_VECTORIZER_MODULE: text2vec-openai
-      CLUSTER_HOSTNAME: 'weaviate'
-      ENABLE_MODULES: 'text2vec-openai,generative-openai'
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
-    # Make the PERSISTENCE_DATA_PATH to be mounted
-    volumes:
-      - ./.vectordb:/var/lib/weaviate
   redis:
     container_name: redis
     image: redis/redis-stack
