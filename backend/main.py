@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from ollama import OllamaWrapper
 from fastapi import BackgroundTasks
 import os
+import litellm 
 import asyncio
 
 
@@ -21,13 +22,8 @@ async def lifespan(app: FastAPI):
         decode_responses=True
     )
 
-    app.state.ollama = OllamaWrapper(
-        base_url=os.environ["OLLAMA_API_BASE_URL"]
-    )
-
     yield
     await app.state.redis.close()
-    del app.state.ollama
 
 app = FastAPI(lifespan=lifespan)
 
@@ -98,8 +94,6 @@ async def test_stream():
 
     return StreamingResponse(simple_generator(), media_type="text/plain")
 
-import asyncio
-
 
 @app.post("/chat")
 async def chat(request_body: ChatRequestData, background_tasks: BackgroundTasks):
@@ -126,32 +120,33 @@ async def chat(request_body: ChatRequestData, background_tasks: BackgroundTasks)
 
     assistant_response = {"role": "assistant", "content": ""}
 
+    completion_kwargs = {}
+    if "ollama" in request_body.model:
+        completion_kwargs["api_base"] = os.environ["OLLAMA_API_BASE_URL"]
+
     async def returned_value_generator(assistant_response):
-
-        sync_gen = app.state.ollama.generate_chat_completion(
-            model=request_body.model,
+        response = await litellm.acompletion(
+            model=request_body.model, 
             messages=messagages,
-            options=dict(request_body.options),
+            temperature=request_body.options.temperature,
+            # seed=request_body.options.seed,
+            stream=True,
+            **completion_kwargs
         )
-
-        async def async_wrapper_for_sync_gen(sync_gen):
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, next, sync_gen, StopIteration)
-            return result
-
-        try:
-            while True:
-                piece = await async_wrapper_for_sync_gen(sync_gen)
-                if piece == StopIteration:
-                    break
-                content = piece["message"]["content"]
+        async for chunk in response:
+            try:
+                content = chunk["choices"][0]["delta"].content
+                if content is None:
+                    continue
                 assistant_response["content"] += content
-                yield content.encode('utf-8')
-        except StopIteration:
-            pass  
+                yield content
+            except StopIteration:
+                pass
 
     # Generate and stream the response
-    response = StreamingResponse(returned_value_generator(assistant_response), media_type="text/plain")
+    response = StreamingResponse(
+        returned_value_generator(assistant_response), media_type="text/plain"
+    )
 
     if request_body.record:
         async def push_to_redis_after_response():
@@ -161,25 +156,3 @@ async def chat(request_body: ChatRequestData, background_tasks: BackgroundTasks)
         background_tasks.add_task(push_to_redis_after_response)
 
     return response
-
-
-"""
-@app.get("/search")
-async def search(
-    section: str = Query("content", description="Section to return (title, codes, content)"),
-    query: str = Query(None, description="Search query"),
-):
-    if query is None:
-        return {"message": "Please provide a search query"}
-    
-    # Assuming `run_search` returns a list of dictionaries with keys like 'title', 'codes', 'content'
-    results = await run_search(query)
-    
-    # Filter results to return only the requested section if it exists
-    results = [
-         result.get("title") + "\n\n\n" + result.get(section, "Not available") for result in results if section in result
-    ]
-   
-    return "\n\n\n".join(results)
-
-"""
