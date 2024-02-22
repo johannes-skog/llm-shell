@@ -9,9 +9,8 @@ from fastapi import BackgroundTasks
 import os
 import asyncio
 
-
-os.environ["REDIS_HOST"] = "redis://redis:6379"
-os.environ["OLLAMA_API_BASE_URL"] = "http://ollama:11434"
+#os.environ["REDIS_HOST"] = "redis://redis:6379"
+#os.environ["OLLAMA_API_BASE_URL"] = "http://ollama:11434"
 
 CHAT_HISTORY_KEY = "chat_history:{session}"
 

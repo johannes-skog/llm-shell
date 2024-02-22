@@ -60,6 +60,9 @@ services:
     build:
       context: . # This line specifies the build context
       dockerfile: Dockerfile.backend
+    environment:
+      REDIS_HOST: "redis://redis:6379"
+      OLLAMA_API_BASE_URL: "http://ollama:11434"
     restart: always
     volumes:
       - ./backend:/backend 
