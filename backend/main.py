@@ -9,8 +9,6 @@ from fastapi import BackgroundTasks
 import os
 import asyncio
 
-#os.environ["REDIS_HOST"] = "redis://redis:6379"
-#os.environ["OLLAMA_API_BASE_URL"] = "http://ollama:11434"
 
 CHAT_HISTORY_KEY = "chat_history:{session}"
 
@@ -32,7 +30,6 @@ async def lifespan(app: FastAPI):
     del app.state.ollama
 
 app = FastAPI(lifespan=lifespan)
-
 
 @app.get("/models")
 async def ollama_models():
@@ -71,7 +68,7 @@ async def create_session(request_body: SessionData):
     )
 
 @app.post("/session/exist")
-async def create_session(request_body: SessionData):
+async def session_exist(request_body: SessionData):
 
     return await app.state.redis.exists(request_body.name)
 
