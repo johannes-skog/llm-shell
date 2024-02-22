@@ -52,7 +52,6 @@ services:
     volumes:
       - ./redis.conf:/redis-stack.conf 
       - ./.redis:/data
-  
   backend:
     container_name: backend
     image: backend

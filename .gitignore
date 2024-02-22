@@ -1,2 +1,10 @@
 ollama-models/
 venv/
+*.pyc
+llm_shell/build/
+llm_shell/venv
+llm_shell/.venv
+llm_shell/dist
+.redis
+.vectordb
+.ipynb_checkpoints/
