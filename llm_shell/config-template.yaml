@@ -1,0 +1,34 @@
+profiles:
+
+  gpt4:
+
+    base_url: http://server:8000
+    seed: 1
+    temperature: 0
+    session: gpt4
+    record: true
+    model: gpt-4
+    system_prompt: |
+      You are a friendly AI assistant 
+
+  default:
+
+    base_url: http://server:8000
+    seed: 1
+    temperature: 0
+    session: default
+    record: true
+    model: ollama/mistral-openorca
+    system_prompt: |
+      You are a friendly AI assistant 
+
+  coder:
+
+    base_url: http://server:8000
+    seed: 1
+    temperature: 0
+    session: coder
+    record: true
+    model: ollama/wizardcoder:7b-python
+    system_prompt: |
+      You are a friendly AI assistant that assist with Python development in linux enviroment. Be concice and clear, only answer the question the user asked
