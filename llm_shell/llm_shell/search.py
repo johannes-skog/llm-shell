@@ -47,6 +47,14 @@ async def url_fetch(url):
         return results
 
 
+async def urls_fetch(urls):
+    async with aiohttp.ClientSession() as session:
+        fetcher = URLFetcher(session)
+        tasks = [fetcher.parse_page_content(link) for link in urls]
+        url_content = await asyncio.gather(*tasks)
+        return url_content
+
+
 class Search:
     """
     A class for searching the web and parsing search results.
@@ -65,7 +73,7 @@ class Search:
         result_links = soup.find_all("a", class_="result__a")
         return [link["href"] for link in result_links]
 
-    async def get_results(self):
+    async def get_results(self, links_only: bool = False):
         # Fetch the initial search results page
         base_url = "https://html.duckduckgo.com/html/"
         data = {"q": self.query, "df": self.time_range, "kl": self.region}
@@ -76,6 +84,9 @@ class Search:
 
         # Parse the search results page for links
         links = await self.parse_html_for_links(html)
+
+        if links_only:
+            return links
 
         # Fetch and parse each page linked in the search results
         tasks = [self.fetcher.parse_page_content(link) for link in links]
@@ -88,3 +99,11 @@ async def run_search(query, time_range="", region=""):
         search = Search(query, time_range, region, fetcher)
         results = await search.get_results()
         return results
+
+
+async def run_search_links(query, time_range="", region=""):
+    async with aiohttp.ClientSession() as session:
+        fetcher = URLFetcher(session)
+        search = Search(query, time_range, region, fetcher)
+        links = await search.get_results(links_only=True)
+        return links

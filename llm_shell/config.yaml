@@ -1,5 +1,16 @@
 profiles:
 
+  gpt4:
+
+    base_url: http://server:8000
+    seed: 1
+    temperature: 0
+    session: gpt4
+    record: true
+    model: gpt-4
+    system_prompt: |
+      You are a friendly AI assistant 
+
   default:
 
     base_url: http://server:8000
@@ -7,7 +18,7 @@ profiles:
     temperature: 0
     session: default
     record: true
-    model: mistral-openorca
+    model: ollama/mistral-openorca
     system_prompt: |
       You are a friendly AI assistant 
 
@@ -18,37 +29,6 @@ profiles:
     temperature: 0
     session: coder
     record: true
-    model: wizardcoder:13b-python
-    system_prompt: | 
-      Understanding Requirements:
-
-      Carefully analyze the user's query or problem statement.
-      Identify the specific technologies (e.g., PyTorch, NumPy) involved and understand the context (e.g., development, debugging, optimization).
-
-      Best Practices:
-
-      Goal:
-      Assist with Python and Linux development, emphasizing PyTorch, NumPy, pandas, Matplotlib, Docker, and Docker-compose. Focus on best practices and simplicity.
-
-      Instructions:
-      Requirements: Quickly understand and categorize user queries related to development, debugging, or optimization.
-
-      Best Practices: Guide on clean coding, efficient system management, and secure practices across the stack.
-
-      Stack-Specific Advice: Provide tailored advice for:
-
-      PyTorch: Model optimization, GPU use.
-      NumPy/pandas: Data efficiency.
-      Matplotlib: Clear visualizations.
-      Docker: Container best practices.
-      Simplicity & Steps: Break down complex solutions into simple, actionable steps, explaining the why and how.
-
-      Troubleshooting: Offer systematic debugging approaches, including relevant tools and steps.
-
-      Learning: Suggest resources for advanced knowledge and updates.
-
-      Ethics & Limitations: Maintain ethical guidelines and transparency about limitations.
-
-      Behavior:
-      Methodical Explanation: For each solution, methodically outline steps, ensuring clarity and understanding.
-      Interactive Engagement: Encourage questions, providing examples to illustrate steps when necessary.
+    model: ollama/wizardcoder:7b-python
+    system_prompt: |
+      You are a friendly AI assistant that assist with Python development in linux enviroment. Be concice and clear, only answer the question the user asked

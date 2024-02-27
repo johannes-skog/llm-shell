@@ -1,12 +1,37 @@
+import os
 import fire
+from pathlib import Path
+import json
 import requests
 from rich.console import Console
 from rich.markdown import Markdown
-from llm_shell.search import run_search, url_fetch
-from dataclasses import dataclass
+from llm_shell.search import run_search, url_fetch, urls_fetch, run_search_links
+from dataclasses import dataclass, asdict, field
 import yaml
 from dacite import from_dict
 from typing import Dict, Any
+from llm_shell.context_store import ContextStore
+import tempfile
+import subprocess
+
+
+def _trigger_input():
+
+    with tempfile.NamedTemporaryFile(
+        delete=False, mode="w+", suffix=".txt"
+    ) as tmpfile:
+        tmpfile_path = tmpfile.name
+
+    editor_command = ["nano", tmpfile_path]
+    subprocess.run(editor_command)
+
+    with open(tmpfile_path, "r") as tmpfile:
+        user_content = tmpfile.read().strip()
+
+    os.remove(tmpfile_path)
+
+    return user_content
+
 
 
 @dataclass
@@ -33,14 +58,16 @@ def get_from_default(value, default):
 
 class ChatCLI:
 
-    def __init__(self, config_path: str, profile: str = "default"):
-
+    def __init__(self, config_path: str, profile: str, debug: bool = False):
+        
         with open(config_path, "r") as file:
             config_data = yaml.safe_load(file)
 
         self.config = from_dict(Config, config_data).profiles[profile]
 
         self.console = Console()
+
+        self.debug = debug
 
         if (
             self.config.session is not None
@@ -59,7 +86,7 @@ class ChatCLI:
         url = f"{self.config.base_url}{endpoint}"
         response = requests.post(url, json=data, stream=stream)
 
-        if log is False:
+        if log is False or self.debug is False:
             return response
 
         if response.status_code == 200:
@@ -134,11 +161,12 @@ class ChatCLI:
 
     def chat(
         self,
-        user_content: str = "Who are you",
+        user_content: str = None,
         session: str = None,
         model: str = None,
         record: bool = None,
         interactive: bool = False,
+        context_store: str = ContextStore,
     ):
         """Send a chat request with only user content, display as it streams, and rerender code blocks after."""
 
@@ -149,6 +177,12 @@ class ChatCLI:
                 record=record,
             )
             return
+
+        if context_store is not None:
+            user_content = context_store.generate() + "\n\n" + user_content
+
+        self.console.print("[bold red]You:[/]")
+        self.console.print(user_content)
 
         data = {
             "session": get_from_default(session, self.config.session),
@@ -168,12 +202,8 @@ class ChatCLI:
             accumulated = ""
             for line in response:
                 decoded_line = line.decode("utf-8")
-                self.console.print(decoded_line, end="")  # Display line as it comes
-                accumulated += decoded_line  # + "\n"
-
-            self.console.rule("[bold red]Markdown Rendered\n")
-            markdown = Markdown(accumulated)
-            self.console.print(markdown)
+                self.console.print(decoded_line, end="")  
+                accumulated += decoded_line
 
         else:
             self.console.log("[bold red]Failed to initiate chat[/]", response.text)
@@ -181,30 +211,103 @@ class ChatCLI:
         return self
 
 
-async def search(query: str):
-    console = Console()
-    content = await run_search(query)
-    console.print(content)
+def configure(
+    config: str = "config.yaml",
+    profile: str = "default",
+):
+
+    ChatCLI._lock_config_state(
+        config_path=config,
+        profile=profile,
+    )
 
 
-def chat(
-    c: str = "config.yaml",
-    p: str = "default",
-    q: str = "Who are you",
-    nr: bool = False,
-    i: bool = False,
-    clean: bool = False,
+def context_store(
+    name: str,
+    file_paths: list[str] = [],
+    urls: list[str] = [],
+    clear: bool = False,
+    directory: str = None,
+    search: str = None,
+):
+
+    context_store = ContextStore(
+        name=name,
+        clear=clear,
+    )
+
+    context_store.add_files(file_paths=file_paths)
+    context_store.add_urls(urls=urls)
+
+    if search:
+        context_store.add_search(query=search)
+
+    if directory:
+        context_store.add_files_by_git(
+            directory=directory,
+            # extensions=extentions,
+        )
+
+
+def search(
+    q: str = None,
+    top_results: int = 3,
+    config_path: str = "config.yaml",
+    profile: str = "default",
 ):
 
     chat_interface = ChatCLI(
-        config_path=c,
-        profile=p,
+        config_path=config_path,
+        profile=profile
+    )
+
+    q = q if q is not None else _trigger_input()
+
+    session_name = "temporary"
+
+    context_store = ContextStore(name="temporary", clear=True).add_search(
+        query=q,
+        top_results=top_results,
+    )
+
+    chat_interface.delete_session(name=session_name).create_session(name=session_name)
+
+    chat_interface.chat(
+        session=session_name,
+        user_content=q,
+        record=False,
+        interactive=False,
+        context_store=context_store,
+    )
+
+def chat(
+    q: str = None,
+    nr: bool = False,
+    i: bool = False,
+    clean: bool = False,
+    context_name: str = None,
+    config_path: str = "config.yaml",
+    profile: str = "default",
+):
+
+    q = q if q is not None else _trigger_input()
+
+    chat_interface = ChatCLI(
+        config_path=config_path,
+        profile=profile
     )
 
     if clean:
         chat_interface.delete_session().create_session()
 
-    chat_interface.chat(user_content=q, record=not nr, interactive=i)
+    chat_interface.chat(
+        user_content=q,
+        record=not nr,
+        interactive=i,
+        context_store=(
+            ContextStore(name=context_name) if context_name is not None else None
+        ),
+    )
 
 
 def main():

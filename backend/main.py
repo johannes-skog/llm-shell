@@ -139,7 +139,7 @@ async def chat(request_body: ChatRequestData, background_tasks: BackgroundTasks)
                 if content is None:
                     continue
                 assistant_response["content"] += content
-                yield content
+                yield content.encode("utf-8")
             except StopIteration:
                 pass
 
