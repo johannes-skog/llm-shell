@@ -15,7 +15,7 @@ import tempfile
 import subprocess
 
 
-def _trigger_input():
+def _trigger_terminal_input():
 
     with tempfile.NamedTemporaryFile(
         delete=False, mode="w+", suffix=".txt"
@@ -31,7 +31,6 @@ def _trigger_input():
     os.remove(tmpfile_path)
 
     return user_content
-
 
 
 @dataclass
@@ -59,6 +58,8 @@ def get_from_default(value, default):
 class ChatCLI:
 
     def __init__(self, config_path: str, profile: str, debug: bool = False):
+
+        config_path = os.path.expanduser(config_path)
         
         with open(config_path, "r") as file:
             config_data = yaml.safe_load(file)
@@ -211,17 +212,6 @@ class ChatCLI:
         return self
 
 
-def configure(
-    config: str = "config.yaml",
-    profile: str = "default",
-):
-
-    ChatCLI._lock_config_state(
-        config_path=config,
-        profile=profile,
-    )
-
-
 def context_store(
     name: str,
     file_paths: list[str] = [],
@@ -245,14 +235,12 @@ def context_store(
     if directory:
         context_store.add_files_by_git(
             directory=directory,
-            # extensions=extentions,
         )
-
 
 def search(
     q: str = None,
     top_results: int = 3,
-    config_path: str = "config.yaml",
+    config_path: str = "~/.llm-shell/config.yaml",
     profile: str = "default",
 ):
 
@@ -261,7 +249,7 @@ def search(
         profile=profile
     )
 
-    q = q if q is not None else _trigger_input()
+    q = q if q is not None else _trigger_terminal_input()
 
     session_name = "temporary"
 
@@ -286,11 +274,11 @@ def chat(
     i: bool = False,
     clean: bool = False,
     context_name: str = None,
-    config_path: str = "config.yaml",
+    config_path: str = "~/.llm-shell/config.yaml",
     profile: str = "default",
 ):
 
-    q = q if q is not None else _trigger_input()
+    q = q if q is not None else _trigger_terminal_input()
 
     chat_interface = ChatCLI(
         config_path=config_path,

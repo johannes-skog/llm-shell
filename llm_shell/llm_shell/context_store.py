@@ -15,9 +15,6 @@ def git_ls_files(directory: str) -> list[str]:
     """
     List all the files tracked by Git in the specified directory with their full paths.
     This version correctly includes the specified directory in the path.
-
-    :param directory: The directory to list files from, must be within a Git repository.
-    :return: A list of full file paths tracked by Git in the specified directory.
     """
     # Ensure the directory is an absolute path
     directory = Path(directory).resolve()
