@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+aiohttp
+requests
+beautifulsoup4
+aioredis
+httpx
+litellm
+async_generator

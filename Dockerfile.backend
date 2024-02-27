@@ -1,0 +1,13 @@
+FROM python:3.10-slim
+
+WORKDIR /backend
+
+EXPOSE 80
+
+COPY backend/requirements.txt /backend/requirements.txt
+
+RUN pip install -r requirements.txt
+
+COPY backend /backend
+
+ENTRYPOINT ["uvicorn", "main:app", "--reload", "--port=8000", "--host=0.0.0.0"]
