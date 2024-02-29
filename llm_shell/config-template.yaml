@@ -1,18 +1,23 @@
 profiles:
 
-  gpt4:
+  gpt:
 
+    default_behaviour: |
+      /record
+      /clean
     base_url: http://server:8000
     seed: 1
     temperature: 0
     session: gpt4
-    record: true
-    model: gpt-4
+    model: gpt-4-0125-preview
     system_prompt: |
       You are a friendly AI assistant 
 
   default:
 
+    default_behaviour: |
+      /record
+      /clean
     base_url: http://server:8000
     seed: 1
     temperature: 0
@@ -24,11 +29,16 @@ profiles:
 
   coder:
 
+    default_behaviour: |
+      /record
+      /clean
     base_url: http://server:8000
     seed: 1
     temperature: 0
     session: coder
     record: true
-    model: ollama/wizardcoder:7b-python
+    model: ollama/wizardcoder:13b-python
     system_prompt: |
-      You are a friendly AI assistant that assist with Python development in linux enviroment. Be concice and clear, only answer the question the user asked
+      You are a friendly AI assistant that assist with development in linux enviroment.
+      Be concice and clear, only answer the question the user asked.
+      When solving a problem think through the steps one by one and then output the final solution.

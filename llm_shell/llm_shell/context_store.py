@@ -5,7 +5,6 @@ from pathlib import Path
 from dacite import from_dict
 from llm_shell.search import urls_fetch, run_search_links
 from dataclasses import dataclass, asdict, field
-
 import subprocess
 import os
 from pathlib import Path
@@ -82,6 +81,7 @@ class ContextStore:
         def inner(self, *args, **kwargs):
             func(self, *args, **kwargs)
             self._write()
+            return self
 
         return inner
 
@@ -150,26 +150,23 @@ class ContextStore:
         return self
 
     @_write_decorator
-    def add_urls(self, urls: str):
+    def add_urls(self, urls: str | list[str]):
         if isinstance(urls, str):
             urls = [urls]
         self.data.urls.extend(urls)
         return self
 
-    def add_search(self, query: str, top_results: int = None):
+    def add_search(self, query: str | list[str], top_results: int = None):
+        if isinstance(query, str):
+            query = [query]
 
-        results = asyncio.run(run_search_links(query=query))
+        for q in query:
+            results = asyncio.run(run_search_links(query=q))
+            self.add_urls(results[0:top_results] if top_results else results)
 
-        self.add_urls(results[0:top_results] if top_results else results)
         return self
 
     def add_files_by_extension(self, directory: str, extensions: list[str] = []):
-        """
-        Adds all files with the given extension from the specified directory and its subdirectories to the tracked files.
-
-        :param directory: The directory to search for files.
-        :param extensions: The file extensions to look for, including the dot (e.g., '.txt').
-        """
         path = Path(directory)
         files = []
 
@@ -180,8 +177,12 @@ class ContextStore:
         self.add_files(files)
         return self
 
-    def add_files_by_git(self, directory: str):
-        self.add_files(git_ls_files(directory))
+    def add_files_by_git(self, directory: str | list[str]):
+
+        if isinstance(directory, str):
+            directory = [directory]
+        for d in directory:
+            self.add_files(git_ls_files(d))
         return self
 
     def _write(self):

@@ -1,26 +1,23 @@
 import os
 import fire
-from pathlib import Path
-import json
+import re
 import requests
 from rich.console import Console
-from rich.markdown import Markdown
-from llm_shell.search import run_search, url_fetch, urls_fetch, run_search_links
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 import yaml
 from dacite import from_dict
-from typing import Dict, Any
+from typing import Dict
 from llm_shell.context_store import ContextStore
 import tempfile
 import subprocess
 
 
-def _trigger_terminal_input():
+def _trigger_terminal_input(template: str = None):
 
-    with tempfile.NamedTemporaryFile(
-        delete=False, mode="w+", suffix=".txt"
-    ) as tmpfile:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w+", suffix=".txt") as tmpfile:
         tmpfile_path = tmpfile.name
+        if template is not None:
+            tmpfile.write("\n\n" + template)
 
     editor_command = ["nano", tmpfile_path]
     subprocess.run(editor_command)
@@ -39,6 +36,7 @@ class Config:
     @dataclass
     class Profile:
         base_url: str
+        default_behaviour: str
         seed: int = 1
         temperature: float = 1
         record: bool = True
@@ -57,14 +55,9 @@ def get_from_default(value, default):
 
 class ChatCLI:
 
-    def __init__(self, config_path: str, profile: str, debug: bool = False):
+    def __init__(self, config: Config, debug: bool = False):
 
-        config_path = os.path.expanduser(config_path)
-        
-        with open(config_path, "r") as file:
-            config_data = yaml.safe_load(file)
-
-        self.config = from_dict(Config, config_data).profiles[profile]
+        self.config = config
 
         self.console = Console()
 
@@ -203,7 +196,7 @@ class ChatCLI:
             accumulated = ""
             for line in response:
                 decoded_line = line.decode("utf-8")
-                self.console.print(decoded_line, end="")  
+                self.console.print(decoded_line, end="")
                 accumulated += decoded_line
 
         else:
@@ -212,89 +205,98 @@ class ChatCLI:
         return self
 
 
-def context_store(
-    name: str,
-    file_paths: list[str] = [],
-    urls: list[str] = [],
-    clear: bool = False,
-    directory: str = None,
-    search: str = None,
-):
+def _extract_patterns_behaviour(input_string: str):
 
-    context_store = ContextStore(
-        name=name,
-        clear=clear,
-    )
+    def _extract_patterns(input_string: str, map: dict):
 
-    context_store.add_files(file_paths=file_paths)
-    context_store.add_urls(urls=urls)
+        results = {}
 
-    if search:
-        context_store.add_search(query=search)
+        for name, pattern in map.items():
+            results[name] = re.findall(pattern, input_string)
 
-    if directory:
-        context_store.add_files_by_git(
-            directory=directory,
-        )
+        for name, pattern in map.items():
+            input_string = re.sub(pattern, "", input_string)
 
-def search(
-    q: str = None,
-    top_results: int = 3,
-    config_path: str = "~/.llm-shell/config.yaml",
+        return results, input_string
+
+    map = {
+        "clean": "/clean",
+        "record": "/record",
+        "profile": r"@profile\((.*?)\)",
+        "search": r"@search\((.*?)\)",
+        "files": r"@file\((.*?)\)",
+        "directory": r"@directory\((.*?)\)",
+        "urls": r"@url\((.*?)\)",
+    }
+
+    results, input_string = _extract_patterns(input_string=input_string, map=map)
+
+    return results, input_string.strip()
+
+
+def set_default_behaviour(
+    default_behaviour: str,
     profile: str = "default",
 ):
+    default_behaviour = f"@profile({profile})\n" + default_behaviour
 
-    chat_interface = ChatCLI(
-        config_path=config_path,
-        profile=profile
-    )
+    return default_behaviour
 
-    q = q if q is not None else _trigger_terminal_input()
-
-    session_name = "temporary"
-
-    context_store = ContextStore(name="temporary", clear=True).add_search(
-        query=q,
-        top_results=top_results,
-    )
-
-    chat_interface.delete_session(name=session_name).create_session(name=session_name)
-
-    chat_interface.chat(
-        session=session_name,
-        user_content=q,
-        record=False,
-        interactive=False,
-        context_store=context_store,
-    )
 
 def chat(
     q: str = None,
-    nr: bool = False,
     i: bool = False,
-    clean: bool = False,
-    context_name: str = None,
     config_path: str = "~/.llm-shell/config.yaml",
     profile: str = "default",
 ):
 
-    q = q if q is not None else _trigger_terminal_input()
+    config_path = os.path.expanduser(config_path)
 
-    chat_interface = ChatCLI(
-        config_path=config_path,
-        profile=profile
+    with open(config_path, "r") as file:
+        config_data = yaml.safe_load(file)
+
+    config = from_dict(Config, config_data).profiles[profile]
+
+    q = (
+        q
+        if q is not None
+        else _trigger_terminal_input(
+            set_default_behaviour(
+                profile=profile,
+                default_behaviour=config.default_behaviour,
+            )
+        )
     )
+
+    behaviour, q = _extract_patterns_behaviour(q)
+
+    record = len(behaviour["record"]) > 0
+    clean = len(behaviour["clean"]) > 0
+
+    chat_interface = ChatCLI(config=config)
 
     if clean:
         chat_interface.delete_session().create_session()
 
+    context_store = (
+        ContextStore(
+            name="temporary",
+            clear=True,
+        )
+        .add_files(behaviour["files"])
+        .add_urls(behaviour["urls"])
+        .add_search(
+            behaviour["search"],
+            top_results=3,
+        )
+        .add_files_by_git(behaviour["directory"])
+    )
+
     chat_interface.chat(
         user_content=q,
-        record=not nr,
+        record=record,
         interactive=i,
-        context_store=(
-            ContextStore(name=context_name) if context_name is not None else None
-        ),
+        context_store=context_store,
     )
 
 
