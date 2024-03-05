@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 import json
 from fastapi.responses import StreamingResponse
-from ollama import OllamaWrapper
 from fastapi import BackgroundTasks
 import os
 import litellm 
@@ -26,10 +25,6 @@ async def lifespan(app: FastAPI):
     await app.state.redis.close()
 
 app = FastAPI(lifespan=lifespan)
-
-@app.get("/models")
-async def ollama_models():
-    return app.state.ollama.models
 
 class SessionData(BaseModel):
 
@@ -66,7 +61,9 @@ async def create_session(request_body: SessionData):
 @app.post("/session/exist")
 async def session_exist(request_body: SessionData):
 
-    return await app.state.redis.exists(request_body.name)
+    return await app.state.redis.exists(
+        CHAT_HISTORY_KEY.format(session=request_body.name)
+    )
 
 
 class ChatRequestData(BaseModel):
@@ -84,16 +81,6 @@ class ChatRequestData(BaseModel):
     model: str
     messages: list[Message]
     options: Options = Options()
-
-@app.get("/test_stream")
-async def test_stream():
-    async def simple_generator():
-        for i in range(10):
-            yield f"Line {i}\n"
-            await asyncio.sleep(1)  # Simulate asynchronous operation
-
-    return StreamingResponse(simple_generator(), media_type="text/plain")
-
 
 @app.post("/chat")
 async def chat(request_body: ChatRequestData, background_tasks: BackgroundTasks):

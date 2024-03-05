@@ -23,7 +23,7 @@ profiles:
     temperature: 0
     session: default
     record: true
-    model: ollama/mistral-openorca
+    model: ollama/mixtral:instruct
     system_prompt: |
       You are a friendly AI assistant 
 
