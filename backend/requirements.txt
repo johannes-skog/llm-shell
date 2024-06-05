@@ -7,3 +7,4 @@ aioredis
 httpx
 litellm
 async_generator
+google-generativeai
