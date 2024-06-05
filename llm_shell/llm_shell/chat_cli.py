@@ -131,8 +131,6 @@ class ChatCLI:
 
     def _chat_interactive(
         self,
-        session: str = None,
-        model: str = None,
         record: bool = None,
     ):
 
@@ -145,9 +143,8 @@ class ChatCLI:
                 return
 
             self.chat(
-                session=session,
                 user_content=user_content,
-                model=model,
+                ignore_user_content=True,
                 record=record,
             )
 
@@ -156,31 +153,22 @@ class ChatCLI:
     def chat(
         self,
         user_content: str = None,
-        session: str = None,
-        model: str = None,
+        context_store: ContextStore = None,
+        ignore_user_content: bool = False,
         record: bool = None,
-        interactive: bool = False,
-        context_store: str = ContextStore,
     ):
         """Send a chat request with only user content, display as it streams, and rerender code blocks after."""
-
-        if interactive:
-            self._chat_interactive(
-                session=session,
-                model=model,
-                record=record,
-            )
-            return
 
         if context_store is not None:
             user_content = context_store.generate() + "\n\n" + user_content
 
-        self.console.print("[bold red]You:[/]")
-        self.console.print(user_content)
+        if ignore_user_content is False:
+            self.console.print("[bold yellow]You:[/]")
+            self.console.print(user_content)
 
         data = {
-            "session": get_from_default(session, self.config.session),
-            "model": get_from_default(model, self.config.model),
+            "session": self.config.session,
+            "model": self.config.model,
             "messages": [{"role": "user", "content": user_content}],
             "options": {
                 "seed": self.config.seed,
@@ -242,6 +230,28 @@ def set_default_behaviour(
 
     return default_behaviour
 
+def chat_interactive(
+    config_path: str = "~/.llm-shell/config.yaml",
+    profile: str = "default",
+    record: bool = None,
+    clean: bool = False,
+):
+
+    config_path = os.path.expanduser(config_path)
+
+    with open(config_path, "r") as file:
+        config_data = yaml.safe_load(file)
+
+    config = from_dict(Config, config_data).profiles[profile]
+
+    chat_interface = ChatCLI(config=config)
+
+    if clean:
+        chat_interface.delete_session().create_session()
+
+    chat_interface._chat_interactive(
+        record=record
+    )
 
 def chat(
     q: str = None,
@@ -256,6 +266,11 @@ def chat(
         config_data = yaml.safe_load(file)
 
     config = from_dict(Config, config_data).profiles[profile]
+
+    chat_interface = ChatCLI(config=config)
+
+    if i is True:
+        chat_interface._chat_interactive()
 
     q = (
         q
@@ -272,8 +287,6 @@ def chat(
 
     record = len(behaviour["record"]) > 0
     clean = len(behaviour["clean"]) > 0
-
-    chat_interface = ChatCLI(config=config)
 
     if clean:
         chat_interface.delete_session().create_session()
