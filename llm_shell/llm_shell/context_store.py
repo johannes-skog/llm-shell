@@ -89,12 +89,15 @@ class ContextStore:
 
         context = self._load_files() + self._load_urls()
 
-        context_prompt = (
-            f"Use the added context when answering the question."
-            f"Always refere to the content using links.\n\n{context}"
-        )
+        if context != "":
 
-        return context_prompt
+            return (
+                f"Use the added context when answering the question."
+                f"Always refere to the content using links.\n\n{context}"
+            )
+
+        else:
+            return ""
 
     def _load_files(self):
 
